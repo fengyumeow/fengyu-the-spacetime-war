@@ -45,3 +45,4 @@ DLC/ShownOnFirstRun
 launcher_profiles.json
 webcache/
 cache/
+*.backup
