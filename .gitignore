@@ -16,3 +16,32 @@ setup_github_repo.state.json
 **/__pycache__/
 track_large_files_lfs.bat
 track_large_files_lfs.ps1
+# 玩家世界与个人数据
+saves/
+screenshots/
+logs/
+crash-reports/
+backups/
+replay_recordings/
+
+# 玩家个人设置
+options.txt
+optionsof.txt
+servers.dat
+usercache.json
+usernamecache.json
+
+# 临时文件
+*.log
+hs_err_pid*.log
+*.tmp
+
+# DLC Manager 临时与本机状态
+DLC/tmp/
+DLC/ShownOnFirstRun
+
+# 启动器及缓存
+.minecraft/
+launcher_profiles.json
+webcache/
+cache/
