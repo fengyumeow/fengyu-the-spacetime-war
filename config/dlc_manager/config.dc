@@ -49,9 +49,6 @@ downloadMirrorProbeCount = 3
 downloadMirrorProbeStrategy = "single"
 
 [modpack]
-modpack = ""
-modpackUrl = ""
-updateGitRepo = ""
 # 整合包稳定标识，用于拓展包的条件判断
 modpack = "fengyu-the-spacetime-war"
 
