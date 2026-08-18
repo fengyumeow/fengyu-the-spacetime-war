@@ -46,3 +46,5 @@ launcher_profiles.json
 webcache/
 cache/
 *.backup
+# Sinytra Connector 生成的转换缓存
+mods/.connector/

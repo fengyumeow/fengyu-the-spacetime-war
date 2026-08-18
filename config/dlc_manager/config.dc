@@ -52,3 +52,11 @@ downloadMirrorProbeStrategy = "single"
 modpack = ""
 modpackUrl = ""
 updateGitRepo = ""
+# 整合包稳定标识，用于拓展包的条件判断
+modpack = "fengyu-the-spacetime-war"
+
+# 玩家点击“整合包链接”时打开的页面
+modpackUrl = "https://github.com/fengyumeow/fengyu-the-spacetime-war"
+
+# 用于检查 Release 更新的仓库
+updateGitRepo = "https://github.com/fengyumeow/fengyu-the-spacetime-war"
