@@ -1,0 +1,10 @@
+{
+  "spell.kubejs.ally_toss": "盟友投掷",
+  "spell.kubejs.ally_toss.info": "将3格内最近的同队玩家抛向身后",
+  "spell.kubejs.over_shoulder_throw": "过肩摔",
+  "spell.kubejs.over_shoulder_throw.info": "将3格内最近的非同队玩家抛向身后",
+  "spell.kubejs.dwarf_leap": "矮人飞跃",
+  "spell.kubejs.dwarf_leap.info": "向正前方飞跃约12格",
+  "spell.kubejs.guillotine": "断头台",
+  "spell.kubejs.guillotine.info": "吟唱1秒，对前方2格内的存活实体造成40点伤害"
+}

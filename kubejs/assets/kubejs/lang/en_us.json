@@ -1,0 +1,10 @@
+{
+  "spell.kubejs.ally_toss": "Ally Toss",
+  "spell.kubejs.ally_toss.info": "Throws the nearest teammate within 3 blocks behind you",
+  "spell.kubejs.over_shoulder_throw": "Over-Shoulder Throw",
+  "spell.kubejs.over_shoulder_throw.info": "Throws the nearest non-teammate within 3 blocks behind you",
+  "spell.kubejs.dwarf_leap": "Dwarf Leap",
+  "spell.kubejs.dwarf_leap.info": "Leap roughly 12 blocks straight forward",
+  "spell.kubejs.guillotine": "Guillotine",
+  "spell.kubejs.guillotine.info": "After channeling for 1 second, deal 40 damage to living entities within 2 blocks ahead"
+}

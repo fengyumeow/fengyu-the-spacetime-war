@@ -1,0 +1,13 @@
+isNoticeEnabled = false
+neverShow = false
+ShowFrequency = "perlaunchmanager"
+
+[Title]
+en_us = "Title"
+
+[Subhead]
+enabled = false
+en_us = "Subhead"
+
+[Contents]
+en_us = "Contents"

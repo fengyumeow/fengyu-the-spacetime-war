@@ -1,0 +1,9 @@
+{
+  "type": "transform",
+  "description": "Skip ALL ECA transformations including defensive hooks. Only 'type' and 'packages' fields are required, other fields are ignored.",
+  "packages": [
+    "com.example.modA.",
+    "com.example.modB.",
+    "net.example.modC."
+  ]
+}

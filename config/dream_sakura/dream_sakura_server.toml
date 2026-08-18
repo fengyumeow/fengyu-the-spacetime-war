@@ -1,0 +1,43 @@
+
+["Dream Sakura"]
+
+	["Dream Sakura".dream_sakura]
+		#Non-player sourced attacks (mob-to-mob) bypass invulnerability. Player attacks and environmental damage keep normal invulnerability.
+		#非玩家攻击来源（怪物互殴）绕过无敌帧。玩家攻击和环境伤害保持原有无敌帧。
+		noInvulnFrame = false
+		#Prerequisite: noInvulnFrame must be enabled. Attackers hitting more than 3 times in 0.5s are blacklisted, keeping normal invulnerability to prevent tick-by-tick kill.
+		#前置条件：必须开启noInvulnFrame。0.5秒内命中超过3次的攻击者会被拉黑。
+		noInvulnFrameBlacklist = false
+		#Disable Lost Engine durability consumption when taking lightning damage
+		#禁止失落引擎在受到雷击时必杀和雷击的隐藏负面效果
+		disableLostEngineDurability = false
+		#Allow players to ride on other players by right-clicking with empty hand
+		#允许玩家空手右键骑乘到其他玩家头上（未完善）
+		enablePlayerLadder = false
+		#Allow the vehicle player to dismount the passenger by crouching
+		#允许下方的载体玩家通过蹲下让上方的骑乘者下来
+		enablePlayerLadderCrouchDismount = false
+		#Sync Iron's Spellbooks crown attributes (spell power, cooldown) from HEAD slot to custom crown curios slot
+		#将Iron's Spellbooks王冠的法强、冷却等属性从HEAD槽同步到自定义crown饰品槽
+		enableIronCrownSync = false
+		#Allow all players to teleport using Explorer's Compass without OP/cheat mode. Requires ExplorersCompass mod.
+		#允许所有玩家使用探险家指南针传送，无需 OP/作弊模式。需要安装ExplorersCompass模组。
+		enableExplorersCompassTeleport = false
+		#Auto-merge nearby dropped items of the same type. Reduces lag from many small stacks.
+		#自动合并16格范围内的同类型掉落物，减少地面小堆物品导致的卡顿。
+		enableItemMerge = false
+		#Auto-merge nearby XP orbs. Reduces lag from many small XP orbs.
+		#自动合并16格范围内的经验球，减少大量小经验球导致的卡顿。
+		enableXpMerge = false
+		#Incrementally back up chunk region files and Dream Sakura region identity data outside the world directory.
+		#在世界目录外增量备份区块文件、区域身份数据和区域快照。
+		enableExternalWorldBackup = false
+		#Minimum interval in minutes between external incremental backups.
+		#外部增量备份的最小间隔分钟数。
+		#Range: 1 ~ 1440
+		externalWorldBackupIntervalMinutes = 10
+		#Previous versions retained for each changed backup file, in addition to the current mirror.
+		#每个文件除当前镜像外保留的历史版本数量。
+		#Range: 1 ~ 10
+		externalWorldBackupHistory = 3
+

@@ -1,0 +1,55 @@
+#Force compatibility mode: when enabled, most ECA capabilities will be disabled to reduce potential compatibility issues with other mods. All bytecode transformations, retransforms, and dataflow warmup are skipped entirely.
+#强制兼容模式：开启后，ECA 的大部分能力将会失效，用于减少可能导致的兼容问题。 所有字节码转换、重转换、数据流预热均被跳过。
+"Force Compatibility Mode" = false
+#Unlock vanilla attribute upper limit to Double.MAX_VALUE (1.7976931348623157E308)
+#解除原版属性上限至 Double.MAX_VALUE（1.7976931348623157E308）
+"Unlock Attribute Limits" = true
+#Enable custom loading background rendered by agent transform
+#启用由 agent transform 渲染的自定义加载背景
+"Enable Custom Loading Background" = true
+#Maximum render distance (in blocks) for force-loaded entities.
+#强制加载实体的最大渲染（方块）
+#Range: > 2
+"Force Loading Max Render Distance" = 128
+
+[Attack]
+	#Enable radical attack logic: memoryRemove, AllReturn, etc. WARNING: This may cause game instability!
+	#启用激进攻击逻辑：memoryRemove、AllReturn 等。警告：可能导致游戏不稳定！
+	"Enable Radical Logic" = false
+
+	[Attack.setHealth]
+		#Enable setHealth constant-override: patch constant-returning getHealth to consult a per-entity override table.
+		#启用 setHealth 常数覆写：将返回常数的 getHealth 改写为查询按实体的覆写表。
+		"Enable Const Override" = false
+		#Enable setHealth external scan: when getHealth is defended, also reverse isAlive/isDeadOrDying/hurt/actuallyHurt to locate the real health storage. Requires radical logic.
+		#启用 setHealth 外部扫描：getHealth 被防守时，额外逆向 isAlive/isDeadOrDying/hurt/actuallyHurt 定位真实血量存储。需同时开启激进逻辑。
+		"Enable External Scan" = false
+		#Enable setHealth method-probe: when storage is unreachable, drive the entity's own health-writing method (behavioral direct call, or a HEAD-injected token/writer bridge). Requires radical logic.
+		#启用 setHealth 方法探针：存储不可达时，驱动实体自身的血量写方法(行为直调，或 HEAD 注入的 token/writer 桥)。需同时开启激进逻辑。
+		"Enable Method Probe" = false
+		#Enable setHealth numeric inversion: at the dead-end of dataflow reversal (custom non-invertible decode), descend into the live object graph and perturb primitive cells to drive getHealth to target. Requires radical logic.
+		#启用 setHealth 数值反演：数据流逆向在自定义非可逆解码处死角时，深入运行期对象图扰动原始 cell，令 getHealth 逼近目标。需同时开启激进逻辑。
+		"Enable Numeric Inversion" = false
+
+[Defence]
+	#Enable radical defence logic: when the Java agent is unavailable, start JVMTI to perform retransformation.
+	#启用激进防御逻辑：当 Java agent 不可用时，将会启动 JVMTI 进行重转换。
+	"Enable Radical Logic" = false
+	#Prevent mobs from targeting invulnerable entities via setTarget.
+	#启用后无敌实体不可被其他实体通过 setTarget 锁定为目标。
+	"Invulnerable Entity Untargetable" = true
+
+[BossShow]
+	#Maximum duration (in ticks) a subtitle stays on screen.
+	#字幕在屏幕上的最长保留时间（tick）
+	#Range: 1 ~ 72000
+	"Max Subtitle Duration Ticks" = 100
+	#Interval (in ticks) between trigger scans for Range-type BossShow entries.
+	#范围触发类型的 BossShow 进行触发扫描的间隔（tick）
+	#Range: 1 ~ 200
+	"Range Scan Interval Ticks" = 10
+	#Reach distance (in blocks) for the entity-bind raytrace during recording selection mode. Default 64.
+	#录制选择模式下实体绑定射线追踪的触及距离（方块）。默认 64。
+	#Range: 4 ~ 256
+	"Entity Selection Range" = 64
+

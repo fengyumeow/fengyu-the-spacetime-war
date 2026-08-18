@@ -1,0 +1,36 @@
+
+["Dream Finale"]
+
+	["Dream Finale".dream_sakura]
+		#Revive ban time in seconds for DreamSakura damage
+		#梦幻终序伤害的复活禁止时间（秒）
+		#Range: > 0
+		reviveBanTime = 5
+		#Heal negation duration in seconds (0 = permanent until death)
+		#梦幻终序伤害的治疗禁止持续时间（秒，0=永久至死亡）
+		#Range: > 0
+		healNegationDuration = 30
+		#Maximum damage limit for single DreamSakura attack
+		#单次梦幻终序攻击的伤害上限
+		#Range: 20.0 ~ 1.7976931348623157E308
+		damageLimit = 20.0
+		#Enable DreamSakura protection system (prevents inventory clearing, kicking, etc.)
+		#启用梦幻终序保护系统（防止清包、踢出等）
+		enableProtection = true
+		#Enable Dream Finale player IP ban immunity
+		#启用终序玩家 IP 封禁免疫（自动解封、拦截封禁指令）
+		enableBanImmunity = true
+		#Default special health amount when player first equips Dream Finale
+		#玩家首次装备梦幻终序时的默认特殊血量
+		#Range: 1024.0 ~ 1.7976931348623157E308
+		defaultHealth = 1024.0
+		#Visual animation effects for turning off fires and frostbite
+		#熄灭火焰和冻伤的视觉动画效果列表
+		visualAnimation = ["dream_sakura:dream_finale{fire,ice}"]
+		#Enable cherry blossom particles when wearing Dream Finale
+		#佩戴梦幻终序时启用樱花粒子效果
+		enableDreamFinaleParticle = true
+		#Enable extra render layer for entities with positive Dream Sakura health
+		#为拥有梦幻终序血量的实体启用额外渲染层
+		enableDreamFinaleExtraRender = true
+

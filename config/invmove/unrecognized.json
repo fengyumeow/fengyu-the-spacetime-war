@@ -1,0 +1,43 @@
+{
+  "allowMovement": {
+    "com.example.playerinfo.client.PlayerInfoScreen": true,
+    "net.minecraft.client.gui.screens.PauseScreen": true,
+    "xaero.map.gui.GuiMap": true,
+    "net.minecraft.client.gui.screens.OptionsScreen": true,
+    "dlovin.inventoryhud.gui.config.InventoryConfigScreen": true,
+    "dlovin.inventoryhud.gui.config.ArmorConfigScreen": true,
+    "dlovin.inventoryhud.gui.InGameConfigScreen": true,
+    "net.minecraft.client.gui.screens.SkinCustomizationScreen": true,
+    "net.minecraft.client.gui.screens.SoundOptionsScreen": true,
+    "mezz.jei.gui.recipes.RecipesGui": true,
+    "dlovin.inventoryhud.gui.config.PotionConfigScreen": true,
+    "dlovin.inventoryhud.gui.config.CuriosConfigScreen": true,
+    "top.theillusivec4.curios.client.gui.CuriosScreenV2": true,
+    "org.embeddedt.embeddium.gui.EmbeddiumVideoOptionsScreen": true,
+    "net.irisshaders.iris.gui.screen.ShaderPackScreen": true,
+    "de.maxhenkel.voicechat.gui.VoiceChatScreen": true,
+    "de.maxhenkel.voicechat.gui.VoiceChatSettingsScreen": true,
+    "net.minecraft.client.gui.screens.controls.ControlsScreen": true,
+    "net.minecraftforge.client.gui.ModListScreen": true,
+    "com.example.playerinfo.client.TitleSelectionScreen": true,
+    "net.minecraft.client.gui.screens.ConfirmLinkScreen": true,
+    "net.minecraft.client.gui.screens.packs.PackSelectionScreen": true,
+    "com.gmail.rawlxxxviii.visual_keybinder.screen.AlternativeKeybindScreen": true,
+    "net.minecraft.client.gui.screens.controls.KeyBindsScreen": true,
+    "slimeknights.tconstruct.tables.client.inventory.CraftingStationScreen": true,
+    "com.github.franckyi.guapi.base.ScreenHandlerImpl$GuapiScreen": true,
+    "io.redspace.ironsspellbooks.gui.inscription_table.InscriptionTableScreen": true,
+    "com.checkrod.client.screen.CheckRodScreen": true,
+    "com.moulberry.axiom.screen.EditDisplayEntityScreen": true,
+    "com.moulberry.axiom.screen.CreateDisplayEntityScreen": true,
+    "xaero.map.gui.ExportScreen": true
+  },
+  "hideBackground": {
+    "mezz.jei.gui.recipes.RecipesGui": true,
+    "top.theillusivec4.curios.client.gui.CuriosScreenV2": true,
+    "com.example.playerinfo.client.TitleSelectionScreen": true,
+    "slimeknights.tconstruct.tables.client.inventory.CraftingStationScreen": true,
+    "io.redspace.ironsspellbooks.gui.inscription_table.InscriptionTableScreen": true,
+    "com.checkrod.client.screen.CheckRodScreen": true
+  }
+}

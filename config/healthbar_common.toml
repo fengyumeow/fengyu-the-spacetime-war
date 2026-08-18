@@ -1,0 +1,44 @@
+#是否启用头顶血条显示
+enable = true
+
+[bar]
+	#血条世界空间宽度（米）
+	#Range: 0.2 ~ 10.0
+	width = 1.2
+	#血条世界空间高度（米）
+	#Range: 0.05 ~ 1.0
+	height = 0.15
+
+[visibility]
+	#屏幕中心夹角阈值（度）
+	#Range: 1 ~ 90
+	fov_degree = 90
+	#非同队目标被攻击后血条保留显示时长（秒）
+	#Range: 1 ~ 600
+	attack_hold_seconds = 5
+	#是否显示敌方血条
+	show_enemy_healthbar = true
+	#是否显示友方血条
+	show_friendly_healthbar = true
+
+[highlight]
+	#是否启用队伍高亮轮廓效果
+	enable_team_outline = true
+	#队伍发光轮廓的最大渲染距离（米）；设为 -1 表示不限制距离
+	#Range: -1.0 ~ 512.0
+	max_render_distance = -1.0
+
+[color]
+	#非同队主血条颜色（十六进制，如 #FF5555）
+	enemy = "#FF5555"
+	#同队主血条颜色（十六进制，如 #5555FF）
+	friend = "#5555FF"
+	#伤害吸收颜色（十六进制，如 #FFAA00）
+	absorb = "#FFAA00"
+	#背景颜色（十六进制，支持半透明，如 #55555580）
+	background = "#55555580"
+
+[spectator]
+	#是否启用观察者适配（常驻高亮玩家、敌方红轮廓、持续显示血条）
+	enable_adaptation = true
+

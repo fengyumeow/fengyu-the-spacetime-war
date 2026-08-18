@@ -1,0 +1,7 @@
+{
+  "type": "allreturn",
+  "description": "Skip AllReturn transformation only. Defensive hooks still apply. Only 'type' and 'packages' fields are required, other fields are ignored.",
+  "packages": [
+    "com.example.yourmod."
+  ]
+}

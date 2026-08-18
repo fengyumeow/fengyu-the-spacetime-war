@@ -1,0 +1,42 @@
+
+["Dream Sakura"]
+
+	["Dream Sakura".dream_sakura]
+		#Enable BA halo GUI click particle burst
+		#启用BA光环GUI点击粒子爆发效果
+		enableBaHaloGuiClickParticles = false
+		#Enable glowing cursor trail in GUI screens
+		#在GUI界面中启用发光光标拖尾效果
+		enableCursorTrail = false
+		#Hide item frame border when it contains an item
+		#当物品展示架中有物品时隐藏边框，仅显示物品
+		enableHideItemFrame = false
+		#Enable rain shader post-processing during thunderstorms
+		#启用雷暴天气下的屏幕滤镜效果
+		enableRainShaderEffect = false
+		#Enable HUD damage display
+		#启用HUD伤害显示
+		enableDamageHud = false
+		#Enable floating damage numbers when attacking entities
+		#攻击实体时显示浮动伤害数字
+		enableDamageFloating = false
+		#Master switch for the dropped-item display system, including labels, panels, links, interactions and effects
+		#掉落物显示系统总开关，包括标签、面板、链路、交互与特效
+		enableDroppedItemDisplay = false
+		#Enable dark altar ritual hexagram effect
+		#启用暗黑祭坛仪式六芒星特效
+		enableRitualEffect = false
+		#Enable custom Dream Sakura main menu with parallax background and particles
+		#启用自定义梦樱主界面，包含视差背景和粒子效果
+		enableCustomMainMenu = false
+		#Enable parallax background movement on the main menu
+		#启用主界面视差背景跟随鼠标移动效果
+		enableMainMenuParallax = false
+		#Enable floating sakura particles on the main menu
+		#启用主界面浮动樱花粒子效果
+		enableMainMenuParticles = false
+		#Maximum number of floating particles on the main menu (0-100)
+		#主界面浮动粒子的最大数量 (0-100)
+		#Range: 0 ~ 100
+		mainMenuParticleCount = 30
+
