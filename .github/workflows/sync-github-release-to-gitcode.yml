@@ -1,0 +1,618 @@
+name: Sync GitHub Release To GitCode
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "GitHub release tag to sync"
+        required: false
+        default: ""
+      sync_file:
+        description: "Sync release assets"
+        required: true
+        type: choice
+        options:
+          - "true"
+          - "false"
+        default: "false"
+      sync_all:
+        description: "Sync all GitHub releases"
+        required: true
+        type: choice
+        options:
+          - "false"
+          - "true"
+        default: "false"
+      overwrite_assets:
+        description: "Overwrite same-name assets on GitCode release"
+        required: true
+        type: choice
+        options:
+          - "true"
+          - "false"
+        default: "true"
+  workflow_call:
+    inputs:
+      tag:
+        required: false
+        type: string
+        default: ""
+      sync_file:
+        required: false
+        type: string
+        default: ""
+      sync_all:
+        required: false
+        type: string
+        default: "false"
+      overwrite_assets:
+        required: false
+        type: string
+        default: "true"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip requests
+
+      - name: Sync release
+        id: sync_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+          SOURCE_REPO: ${{ github.repository }}
+          TARGET_TAG: ${{ inputs.tag }}
+          INPUT_SYNC_FILE: ${{ inputs.sync_file }}
+          SYNC_ALL: ${{ inputs.sync_all }}
+          GITCODE_USERNAME_VAR: ${{ vars.GITCODE_USERNAME }}
+          GITCODE_REPO_VAR: ${{ vars.GITCODE_REPO }}
+          GITCODE_SYNC_FILE_VAR: ${{ vars.GITCODE_SYNC_FILE }}
+          OVERWRITE_ASSETS: ${{ inputs.overwrite_assets }}
+        run: |
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          from pathlib import Path
+          from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
+
+          import requests
+
+          gh_token = os.environ.get("GH_TOKEN", "").strip()
+          gitcode_token = os.environ.get("GITCODE_TOKEN", "").strip()
+          source_repo = os.environ["SOURCE_REPO"].strip()
+          target_tag = os.environ.get("TARGET_TAG", "").strip()
+          input_sync_file = os.environ.get("INPUT_SYNC_FILE", "").strip().lower()
+          sync_all = os.environ.get("SYNC_ALL", "false").strip().lower() == "true"
+          gitcode_owner = (os.environ.get("GITCODE_USERNAME_VAR", "") or "").strip()
+          gitcode_repo = (os.environ.get("GITCODE_REPO_VAR", "") or "").strip()
+          sync_file_var = os.environ.get("GITCODE_SYNC_FILE_VAR", "").strip().lower()
+          overwrite_assets = os.environ.get("OVERWRITE_ASSETS", "true").strip().lower() == "true"
+          output_path = os.environ.get("GITHUB_OUTPUT", "").strip()
+
+          if not gitcode_token:
+              raise SystemExit("GITCODE_TOKEN is required.")
+          if not gitcode_owner or not gitcode_repo:
+              raise SystemExit("GITCODE_USERNAME/GITCODE_REPO Repository Variables are required.")
+
+          if input_sync_file in ("true", "false"):
+              sync_files = input_sync_file == "true"
+          elif sync_file_var in ("true", "false"):
+              sync_files = sync_file_var == "true"
+          else:
+              sync_files = False
+
+          gh_headers = {
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+          if gh_token:
+              gh_headers["Authorization"] = f"Bearer {gh_token}"
+
+          gh_base = "https://api.github.com"
+          gitcode_base = "https://api.gitcode.com/api/v5"
+          gitcode_headers = {
+              "Accept": "application/json",
+              "PRIVATE-TOKEN": gitcode_token,
+          }
+
+          def release_sort_key(item):
+              return (
+                  (item.get("published_at") or item.get("created_at") or "").strip(),
+                  (item.get("tag_name") or "").strip(),
+              )
+
+          def gh_get(url, *, headers=None, timeout=60):
+              resp = requests.get(url, headers=headers or gh_headers, timeout=timeout)
+              if resp.status_code >= 300:
+                  raise SystemExit(f"GitHub request failed: {resp.status_code} {resp.text}")
+              return resp
+
+          def load_target_releases():
+              if sync_all:
+                  all_items = []
+                  page = 1
+                  while True:
+                      url = f"{gh_base}/repos/{source_repo}/releases?per_page=100&page={page}"
+                      resp = gh_get(url)
+                      items = resp.json() or []
+                      if not items:
+                          break
+                      all_items.extend(items)
+                      if len(items) < 100:
+                          break
+                      page += 1
+                  return sorted(all_items, key=release_sort_key)
+
+              if target_tag:
+                  url = f"{gh_base}/repos/{source_repo}/releases/tags/{target_tag}"
+              else:
+                  url = f"{gh_base}/repos/{source_repo}/releases/latest"
+              return [gh_get(url).json()]
+
+          def gitcode_request(method, path, *, params=None, data=None, json_body=None, headers=None, timeout=120):
+              url = f"{gitcode_base}{path}"
+              merged_headers = dict(gitcode_headers)
+              if headers:
+                  merged_headers.update(headers)
+              return requests.request(
+                  method,
+                  url,
+                  params=params,
+                  data=data,
+                  json=json_body,
+                  headers=merged_headers,
+                  timeout=timeout,
+              )
+
+          def load_json_or_none(resp):
+              try:
+                  return resp.json()
+              except Exception:
+                  return None
+
+          def gitcode_release_by_tag(tag_name):
+              encoded_tag = quote(tag_name, safe="")
+              resp = gitcode_request("GET", f"/repos/{gitcode_owner}/{gitcode_repo}/releases/tags/{encoded_tag}")
+              if resp.status_code == 200:
+                  return load_json_or_none(resp) or {}
+              list_resp = gitcode_request(
+                  "GET",
+                  f"/repos/{gitcode_owner}/{gitcode_repo}/releases",
+                  params={"per_page": 100},
+              )
+              if list_resp.status_code >= 300:
+                  raise SystemExit(f"Failed to list GitCode releases: {list_resp.status_code} {list_resp.text}")
+              for item in list_resp.json() or []:
+                  if (item.get("tag_name") or "").strip() == tag_name:
+                      return item
+              return None
+
+          def parse_tag_target_pair(tag_name):
+              tag_name = (tag_name or "").strip()
+              pair_delimiters = ["+", "_", "@", "~", " "]
+
+              def parse_pair(value):
+                  value = (value or "").strip()
+                  for delimiter in pair_delimiters:
+                      if delimiter == " ":
+                          parts = value.split()
+                          if len(parts) == 2 and parts[0].strip() and parts[1].strip():
+                              return parts[0].strip(), parts[1].strip()
+                          continue
+                      index = value.find(delimiter)
+                      if 0 < index < len(value) - len(delimiter):
+                          left = value[:index].strip()
+                          right = value[index + len(delimiter):].strip()
+                          if left and right:
+                              return left, right
+                  return None
+
+              if "/" in tag_name:
+                  parsed = parse_pair(tag_name.split("/", 1)[1])
+                  if parsed:
+                      return parsed
+              for index, ch in enumerate(tag_name):
+                  if ch != "-" or index <= 0 or index >= len(tag_name) - 1:
+                      continue
+                  old_pair = parse_pair(tag_name[:index])
+                  new_pair = parse_pair(tag_name[index + 1:])
+                  if old_pair and new_pair:
+                      return new_pair
+              return parse_pair(tag_name)
+
+          def build_release_body(tag_name, body_text):
+              body_text = (body_text or "").strip()
+              if body_text:
+                  return body_text
+              target_pair = parse_tag_target_pair(tag_name)
+              base_ver = target_pair[0] if target_pair else tag_name
+              dlc_ver = target_pair[1] if target_pair else ""
+              return "\n".join([
+                  "version:",
+                  f"base:{base_ver.strip()}",
+                  f"dlc:{dlc_ver.strip()}",
+              ])
+
+          def normalize_gitcode_tag_name(tag_name):
+              return (tag_name or "").replace("/", "-")
+
+          def normalize_gitcode_asset_name(name):
+              return (name or "").replace("+", "-")
+
+          def parse_upload_descriptor(resp):
+              payload = load_json_or_none(resp)
+              upload_url = None
+              upload_method = None
+              upload_fields = None
+              upload_headers = None
+              if isinstance(payload, dict):
+                  upload_url = (
+                      payload.get("upload_url")
+                      or payload.get("url")
+                      or payload.get("location")
+                      or payload.get("uploadUrl")
+                  )
+                  upload_method = payload.get("method") or payload.get("http_method")
+                  upload_fields = payload.get("fields") or payload.get("form") or payload.get("params")
+                  upload_headers = payload.get("headers")
+              location = resp.headers.get("Location") or resp.headers.get("location")
+              if location:
+                  upload_url = upload_url or location
+              if not upload_url:
+                  text = (resp.text or "").strip()
+                  if text.startswith("http://") or text.startswith("https://"):
+                      upload_url = text
+              if not upload_url:
+                  raise SystemExit(
+                      f"GitCode upload_url response did not contain an upload target: {resp.status_code} {resp.text}"
+                  )
+              return upload_url, (upload_method or "").strip().upper(), upload_fields, upload_headers
+
+          def is_gitcode_upload_url(url):
+              try:
+                  host = (urlparse(url).hostname or "").strip().lower()
+              except Exception:
+                  return False
+              return host.endswith("gitcode.com")
+
+          def append_access_token(url):
+              if not gitcode_token or not is_gitcode_upload_url(url):
+                  return url
+              parsed = urlparse(url)
+              query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+              if "AccessKeyId" in query or "Signature" in query:
+                  return url
+              query.setdefault("access_token", gitcode_token)
+              return urlunparse(parsed._replace(query=urlencode(query)))
+
+          def gitcode_upload_headers(target_url, extra_headers=None):
+              headers = {}
+              if is_gitcode_upload_url(target_url):
+                  headers["PRIVATE-TOKEN"] = gitcode_token
+                  headers["Authorization"] = f"Bearer {gitcode_token}"
+              if extra_headers:
+                  headers.update(extra_headers)
+              return headers
+
+          def parse_obs_callback(upload_headers):
+              if not isinstance(upload_headers, dict):
+                  return None
+              callback_b64 = (upload_headers.get("x-obs-callback") or "").strip()
+              if not callback_b64:
+                  return None
+              try:
+                  return json.loads(base64.b64decode(callback_b64).decode("utf-8"))
+              except Exception:
+                  return None
+
+          def manual_gitcode_obs_callback(release_tag, upload_url, upload_headers, asset_name, asset_size):
+              callback = parse_obs_callback(upload_headers)
+              if not callback:
+                  raise SystemExit("GitCode upload callback descriptor is missing.")
+              template = (callback.get("callbackBody") or "").strip()
+              if not template:
+                  raise SystemExit("GitCode upload callback body is missing.")
+              object_key = urlparse(upload_url).path.lstrip("/")
+              body_text = (
+                  template
+                  .replace("$(key)", object_key)
+                  .replace("$(override)", "")
+                  .replace("$(fsize)", str(asset_size))
+              )
+              try:
+                  body = json.loads(body_text)
+              except Exception as exc:
+                  raise SystemExit(f"Failed to parse GitCode callback body for '{asset_name}': {exc}")
+              encoded_tag = quote(release_tag, safe="")
+              callback_url = (
+                  f"{gitcode_base}/repos/{gitcode_owner}/{gitcode_repo}/releases/{encoded_tag}/obs_callback"
+              )
+              resp = requests.post(
+                  f"{callback_url}?access_token={quote(gitcode_token, safe='')}",
+                  json=body,
+                  headers={"Accept": "application/json"},
+                  timeout=120,
+              )
+              if resp.status_code >= 300 or (resp.text or "").strip().lower() != "success":
+                  raise SystemExit(
+                      f"Failed to finalize GitCode asset '{asset_name}' after upload: {resp.status_code} {resp.text}"
+                  )
+
+          def open_upload_attempts(release_tag, asset_name):
+              encoded_tag = quote(release_tag, safe="")
+              resp = gitcode_request(
+                  "GET",
+                  f"/repos/{gitcode_owner}/{gitcode_repo}/releases/{encoded_tag}/upload_url",
+                  params={"file_name": asset_name},
+                  timeout=120,
+              )
+              if resp.status_code >= 400:
+                  raise SystemExit(f"Failed to get GitCode upload URL: {resp.status_code} {resp.text}")
+              upload_url, upload_method, upload_fields, upload_headers = parse_upload_descriptor(resp)
+              signed_upload = bool(upload_headers)
+              if not signed_upload:
+                  upload_url = append_access_token(upload_url)
+              attempts = []
+              if signed_upload:
+                  attempts.append(("PUT_SIGNED", upload_url, upload_headers))
+                  return attempts
+              if upload_fields:
+                  attempts.append(("POST_FORM", upload_url, upload_fields))
+              if "{?name,label}" in upload_url:
+                  upload_url = upload_url.replace("{?name,label}", f"?name={quote(asset_name, safe='')}")
+              if upload_method == "POST":
+                  attempts.append(("POST_RAW", upload_url, None))
+                  attempts.append(("POST_FORM_FILE", upload_url, None))
+              else:
+                  attempts.append(("PUT_RAW", upload_url, None))
+                  attempts.append(("POST_RAW", upload_url, None))
+                  attempts.append(("POST_FORM_FILE", upload_url, None))
+              return attempts
+
+          def upload_gitcode_asset(release_tag, asset_name, asset_path):
+              content_type = "application/octet-stream"
+              asset_size = asset_path.stat().st_size
+              attempt_errors = []
+              last_error = None
+              signed_retry_delays = [0, 5, 20, 60, 120]
+              for signed_attempt, retry_delay in enumerate(signed_retry_delays, start=1):
+                  if retry_delay:
+                      import time
+                      time.sleep(retry_delay)
+                  attempts = open_upload_attempts(release_tag, asset_name)
+                  for kind, url, payload in attempts:
+                      try:
+                          if kind == "PUT_SIGNED":
+                              upload_headers = dict(payload or {})
+                              upload_headers.setdefault("Content-Length", str(asset_size))
+                              with asset_path.open("rb") as upload_stream:
+                                  upload_resp = requests.put(
+                                      url,
+                                      data=upload_stream,
+                                      headers=upload_headers,
+                                      timeout=(60, 7200),
+                                  )
+                              if upload_resp.status_code == 203 and "CallBack.0002" in (upload_resp.text or ""):
+                                  manual_gitcode_obs_callback(release_tag, url, payload, asset_name, asset_size)
+                                  return
+                          elif kind == "POST_FORM":
+                              with asset_path.open("rb") as upload_stream:
+                                  upload_resp = requests.post(
+                                      url,
+                                      data=payload,
+                                      files={"file": (asset_name, upload_stream, content_type)},
+                                      headers=gitcode_upload_headers(url),
+                                      timeout=(60, 7200),
+                                  )
+                          elif kind == "POST_FORM_FILE":
+                              with asset_path.open("rb") as upload_stream:
+                                  upload_resp = requests.post(
+                                      url,
+                                      files={"file": (asset_name, upload_stream, content_type)},
+                                      headers=gitcode_upload_headers(url),
+                                      timeout=(60, 7200),
+                                  )
+                          elif kind == "POST_RAW":
+                              with asset_path.open("rb") as upload_stream:
+                                  upload_resp = requests.post(
+                                      url,
+                                      data=upload_stream,
+                                      headers=gitcode_upload_headers(url, {"Content-Type": content_type, "Content-Length": str(asset_size)}),
+                                      timeout=(60, 7200),
+                                  )
+                          else:
+                              with asset_path.open("rb") as upload_stream:
+                                  upload_resp = requests.put(
+                                      url,
+                                      data=upload_stream,
+                                      headers=gitcode_upload_headers(url, {"Content-Type": content_type, "Content-Length": str(asset_size)}),
+                                      timeout=(60, 7200),
+                                  )
+                          if upload_resp.status_code < 300:
+                              return
+                          last_error = f"{kind} attempt {signed_attempt}: {upload_resp.status_code} {upload_resp.text}"
+                          attempt_errors.append(last_error)
+                      except Exception as exc:
+                          last_error = f"{kind} attempt {signed_attempt}: {exc}"
+                          attempt_errors.append(last_error)
+                  if attempts and attempts[0][0] != "PUT_SIGNED":
+                      break
+              details = " | ".join(attempt_errors) if attempt_errors else str(last_error)
+              raise SystemExit(f"Failed to upload asset '{asset_name}' to GitCode: {details}")
+
+          def sanitize_artifact_name(value):
+              raw = (value or "").strip()
+              if not raw:
+                  raw = "latest"
+              safe = re.sub(r'["\\:<>\|\*\?\r\n/\\\\]+', "-", raw)
+              safe = re.sub(r"-{2,}", "-", safe).strip("-")
+              return safe or "latest"
+
+          gh_releases = load_target_releases()
+          if not gh_releases:
+              raise SystemExit("No GitHub releases found to sync.")
+
+          repo_info_resp = gitcode_request("GET", f"/repos/{gitcode_owner}/{gitcode_repo}")
+          if repo_info_resp.status_code >= 300:
+              raise SystemExit(f"Failed to load GitCode repo info: {repo_info_resp.status_code} {repo_info_resp.text}")
+          repo_info = repo_info_resp.json() or {}
+          default_branch = (repo_info.get("default_branch") or "master").strip() or "master"
+
+          out_dir = Path("out/sync-gitcode-release")
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          total_uploaded = 0
+          total_skipped = 0
+          synced_tags = []
+
+          for gh_release in gh_releases:
+              tag_name = (gh_release.get("tag_name") or "").strip()
+              if not tag_name:
+                  continue
+              gitcode_tag_name = normalize_gitcode_tag_name(tag_name)
+
+              release_name = (gh_release.get("name") or tag_name).strip()
+              release_body = build_release_body(tag_name, gh_release.get("body") or "")
+              target_commitish = (gh_release.get("target_commitish") or default_branch).strip() or default_branch
+              prerelease = bool(gh_release.get("prerelease", False))
+              gh_assets = gh_release.get("assets") or []
+
+              gitcode_release = gitcode_release_by_tag(gitcode_tag_name)
+              payload = {
+                  "tag_name": gitcode_tag_name,
+                  "target_commitish": target_commitish,
+                  "name": release_name,
+                  "body": release_body,
+                  "prerelease": prerelease,
+              }
+
+              if gitcode_release and gitcode_release.get("id"):
+                  release_id = gitcode_release.get("id")
+                  update_resp = gitcode_request(
+                      "PATCH",
+                      f"/repos/{gitcode_owner}/{gitcode_repo}/releases/{release_id}",
+                      json_body=payload,
+                  )
+                  if update_resp.status_code >= 300:
+                      raise SystemExit(f"Failed to update GitCode release: {update_resp.status_code} {update_resp.text}")
+                  gitcode_release = update_resp.json() or gitcode_release
+              elif not gitcode_release:
+                  create_resp = gitcode_request(
+                      "POST",
+                      f"/repos/{gitcode_owner}/{gitcode_repo}/releases",
+                      json_body=payload,
+                  )
+                  if create_resp.status_code >= 300 and target_commitish != default_branch:
+                      fallback_payload = dict(payload)
+                      fallback_payload["target_commitish"] = default_branch
+                      create_resp = gitcode_request(
+                          "POST",
+                          f"/repos/{gitcode_owner}/{gitcode_repo}/releases",
+                          json_body=fallback_payload,
+                      )
+                  if create_resp.status_code >= 300:
+                      raise SystemExit(f"Failed to create GitCode release: {create_resp.status_code} {create_resp.text}")
+                  gitcode_release = create_resp.json() or {}
+
+              current_release = gitcode_release_by_tag(gitcode_tag_name) or gitcode_release or {}
+              existing_assets = current_release.get("assets") or []
+              existing_by_name = {
+                  (item.get("name") or "").strip(): item
+                  for item in existing_assets
+                  if (item.get("name") or "").strip() and (item.get("type") or "").strip() == "attach"
+              }
+
+              uploaded = 0
+              skipped = 0
+              if sync_files:
+                  for asset in gh_assets:
+                      source_asset_name = (asset.get("name") or "").strip()
+                      if not source_asset_name:
+                          continue
+                      gitcode_asset_name = normalize_gitcode_asset_name(source_asset_name)
+                      if gitcode_asset_name in existing_by_name and not overwrite_assets:
+                          skipped += 1
+                          continue
+
+                      gh_asset_url = asset.get("url")
+                      if not gh_asset_url:
+                          continue
+                      download_headers = dict(gh_headers)
+                      download_headers["Accept"] = "application/octet-stream"
+                      asset_path = out_dir / sanitize_artifact_name(tag_name) / gitcode_asset_name
+                      asset_path.parent.mkdir(parents=True, exist_ok=True)
+                      with requests.get(gh_asset_url, headers=download_headers, timeout=(60, 7200), stream=True) as download_resp:
+                          if download_resp.status_code >= 300:
+                              raise SystemExit(
+                                  f"Failed to download GitHub asset '{source_asset_name}': {download_resp.status_code} {download_resp.text}"
+                              )
+                          with asset_path.open("wb") as output:
+                              for chunk in download_resp.iter_content(chunk_size=1024 * 1024):
+                                  if chunk:
+                                      output.write(chunk)
+
+                      if gitcode_asset_name in existing_by_name and overwrite_assets:
+                          # GitCode's public API does not expose a documented delete-asset endpoint.
+                          # Re-upload and let the server decide whether it replaces or rejects.
+                          pass
+
+                      upload_gitcode_asset(gitcode_tag_name, gitcode_asset_name, asset_path)
+                      uploaded += 1
+
+              total_uploaded += uploaded
+              total_skipped += skipped
+              synced_tags.append(tag_name)
+              print(json.dumps({
+                  "tag_name": tag_name,
+                  "gitcode_tag_name": gitcode_tag_name,
+                  "assets_total": len(gh_assets),
+                  "sync_files": sync_files,
+                  "uploaded": uploaded,
+                  "skipped": skipped,
+              }, ensure_ascii=False))
+
+          summary = {
+              "source_repo": source_repo,
+              "gitcode_repo": f"{gitcode_owner}/{gitcode_repo}",
+              "synced_release_count": len(synced_tags),
+              "uploaded": total_uploaded,
+              "skipped": total_skipped,
+              "sync_files": sync_files,
+              "overwrite_assets": overwrite_assets,
+              "sync_all": sync_all,
+          }
+          print(json.dumps(summary, ensure_ascii=False))
+
+          if output_path:
+              with open(output_path, "a", encoding="utf-8") as f:
+                  first_tag = synced_tags[0] if synced_tags else ""
+                  last_tag = synced_tags[-1] if synced_tags else ""
+                  artifact_tag = sanitize_artifact_name(first_tag)
+                  f.write(f"tag_name={first_tag}\n")
+                  f.write(f"first_tag={first_tag}\n")
+                  f.write(f"last_tag={last_tag}\n")
+                  f.write(f"artifact_tag_name={artifact_tag}\n")
+                  f.write(f"synced_release_count={len(synced_tags)}\n")
+                  f.write(f"uploaded={total_uploaded}\n")
+                  f.write(f"skipped={total_skipped}\n")
+                  f.write(f"sync_files={'true' if sync_files else 'false'}\n")
+          PY
+
+      - name: Upload sync artifact
+        if: ${{ steps.sync_release.outputs.sync_files == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: synced-gitcode-release-${{ steps.sync_release.outputs.artifact_tag_name || 'latest' }}
+          path: out/sync-gitcode-release/**
