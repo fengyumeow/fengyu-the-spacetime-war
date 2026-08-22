@@ -23,6 +23,7 @@ const DWARF_LEAP_HORIZONTAL_SPEED = 1.10   // 配合补速，平地目标约 12 
 const DWARF_LEAP_VERTICAL_SPEED = 0.55
 const LAUNCH_REPEAT_TICKS = 4   // 矮人飞跃补速次数
 const THROW_REPEAT_TICKS = 2    // 投掷补速次数
+const DWARF_LEAP_KNOCKBACK_PROTECTION_TICKS = 18 // 仅免疫击退，不免疫伤害
 const GUILLOTINE_DAMAGE = 40.0
 const GUILLOTINE_RANGE = 2.0
 const GUILLOTINE_EXTRA_REACH = 0.25
@@ -37,6 +38,13 @@ global.threeSpellsLastDirSrc = 'unknown'
 global.threeSpellsRawEntity = function (kbRawIn) {
   if (kbRawIn == null) return null
   return typeof kbRawIn.getEntity === 'function' ? kbRawIn.getEntity() : kbRawIn
+}
+
+global.threeSpellsEntityKey = function (kbEnt) {
+  var kbRaw = global.threeSpellsRawEntity(kbEnt)
+  try { return String(kbRaw.getUUID()) } catch (kbUuidErr) { }
+  try { return String(kbEnt.uuid) } catch (kbWrappedUuidErr) { }
+  return ''
 }
 
 // ===== 队伍读取（多级 fallback）=====
@@ -137,12 +145,47 @@ global.threeSpellsLaunchPlayer = function (kbP, kbMX, kbMY, kbMZ) {
   }
 }
 
-global.threeSpellsLaunchAndHold = function (kbP, kbMX, kbMY, kbMZ, kbT) {
+global.threeSpellsLaunchAndHold = function (kbP, kbMX, kbMY, kbMZ, kbT, kbKind, kbProtectionTicks) {
   global.threeSpellsLaunchPlayer(kbP, kbMX, kbMY, kbMZ)
-  global.threeSpellsLaunchQueue.push({ ticks: kbT, x: kbMX, z: kbMZ, player: kbP })
+  var kbKey = global.threeSpellsEntityKey(kbP)
+  var kbI = 0
+  // 同一实体只能保留最新的一次位移，避免两个队列互相覆盖方向。
+  for (kbI = global.threeSpellsLaunchQueue.length - 1; kbI >= 0; kbI--) {
+    if (global.threeSpellsLaunchQueue[kbI].entityKey === kbKey) {
+      global.threeSpellsLaunchQueue.splice(kbI, 1)
+    }
+  }
+  global.threeSpellsLaunchQueue.push({
+    ticks: kbT,
+    protectionTicks: kbProtectionTicks == null ? 0 : kbProtectionTicks,
+    kind: kbKind == null ? 'throw' : kbKind,
+    entityKey: kbKey,
+    x: kbMX,
+    z: kbMZ,
+    player: kbP
+  })
   console.log('[ThreeSpells] launch dir=' + global.threeSpellsLastDirSrc +
     ' v=(' + kbMX + ',' + kbMY + ',' + kbMZ + ') ticks=' + kbT)
 }
+
+global.threeSpellsHasLeapProtection = function (kbEnt) {
+  var kbKey = global.threeSpellsEntityKey(kbEnt)
+  if (kbKey.length === 0) return false
+  var kbQueue = global.threeSpellsLaunchQueue
+  var kbI = 0
+  for (kbI = 0; kbI < kbQueue.length; kbI++) {
+    var kbData = kbQueue[kbI]
+    if (kbData.kind === 'dwarf_leap' && kbData.protectionTicks > 0 && kbData.entityKey === kbKey) return true
+  }
+  return false
+}
+
+// 弓箭/近战命中仍正常造成伤害，但飞跃期间不允许其击退向量覆盖飞跃方向。
+ForgeEvents.onEvent('net.minecraftforge.event.entity.living.LivingKnockBackEvent', kbEvent => {
+  if (!global.threeSpellsHasLeapProtection(kbEvent.getEntity())) return
+  kbEvent.setCanceled(true)
+  console.log('[ThreeSpells] dwarf_leap: cancelled external knockback')
+})
 
 // ---- 朝向（marker 方案，已验证）----
 global.threeSpellsGetX = function (kbEnt) {
@@ -166,7 +209,10 @@ global.threeSpellsGetDirectionViaMarker = function (kbCaster, kbWorld) {
   kbCaster.runCommandSilent('summon minecraft:marker ^ ^ ^3 {Tags:["kb_dir"]}')
   var kbAll = null
   try { kbAll = kbCaster.server.getEntities() } catch (kbSrvErr) { kbAll = null }
-  if (kbAll == null) return null
+  if (kbAll == null) {
+    kbCaster.runCommandSilent('kill @e[type=minecraft:marker,tag=kb_dir,distance=..4]')
+    return null
+  }
   var kbN = kbAll.size()
   var kbDx = null
   var kbDz = null
@@ -177,6 +223,12 @@ global.threeSpellsGetDirectionViaMarker = function (kbCaster, kbWorld) {
     var kbType = ''
     try { kbType = String(kbE.type) } catch (kbTErr) { kbType = '' }
     if (kbType !== 'minecraft:marker') continue
+    var kbTagged = false
+    try { kbTagged = kbE.getTags().contains('kb_dir') } catch (kbTagErr) { kbTagged = false }
+    if (!kbTagged) continue
+    var kbSameDimension = false
+    try { kbSameDimension = String(kbE.level.dimension) === String(kbCaster.level.dimension) } catch (kbDimErr) { kbSameDimension = false }
+    if (!kbSameDimension) continue
     var kbEX = global.threeSpellsGetX(kbE)
     var kbEZ = global.threeSpellsGetZ(kbE)
     if (kbEX == null || kbEZ == null) continue
@@ -189,6 +241,7 @@ global.threeSpellsGetDirectionViaMarker = function (kbCaster, kbWorld) {
       kbDz = kbRZ
     }
   }
+  kbCaster.runCommandSilent('kill @e[type=minecraft:marker,tag=kb_dir,distance=..4]')
   if (kbDx == null) {
     console.log('[ThreeSpells] marker not found (scanned ' + kbN + ')')
     return null
@@ -232,7 +285,9 @@ global.threeSpellsThrowBehind = function (kbWorld, kbCaster, kbFlag) {
     -kbFwd.x * THROW_HORIZONTAL_SPEED,
     THROW_VERTICAL_SPEED,
     -kbFwd.z * THROW_HORIZONTAL_SPEED,
-    THROW_REPEAT_TICKS
+    THROW_REPEAT_TICKS,
+    'throw',
+    0
   )
   console.log('[ThreeSpells] throwBehind: tossed target team=' + global.threeSpellsGetTeamId(kbTar))
 }
@@ -246,7 +301,9 @@ global.threeSpellsDwarfLeap = function (kbCaster, kbWorld) {
     kbFwd.x * DWARF_LEAP_HORIZONTAL_SPEED,
     DWARF_LEAP_VERTICAL_SPEED,
     kbFwd.z * DWARF_LEAP_HORIZONTAL_SPEED,
-    LAUNCH_REPEAT_TICKS
+    LAUNCH_REPEAT_TICKS,
+    'dwarf_leap',
+    DWARF_LEAP_KNOCKBACK_PROTECTION_TICKS
   )
 }
 
